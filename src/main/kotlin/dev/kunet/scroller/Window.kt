@@ -18,6 +18,7 @@ class Window(builder: Window.() -> Unit) {
 
     private var onDraw: DrawContext.() -> Unit = {}
     private var onMouseButton: MouseButtonEventContext.() -> Unit = {}
+    private var onMouseMove: MouseMoveEventContext.() -> Unit = {}
 
     private var windowHandle: Long = -1L
     private var context: DirectContext? = null
@@ -40,12 +41,23 @@ class Window(builder: Window.() -> Unit) {
         val mods: Int,
     )
 
+    data class MouseMoveEventContext(
+        val x: Double,
+        val y: Double,
+        val deltaX: Double,
+        val deltaY: Double,
+    )
+
     fun onDraw(draw: DrawContext.() -> Unit) {
         onDraw = draw
     }
 
     fun onMouseButton(event: MouseButtonEventContext.() -> Unit) {
         onMouseButton = event
+    }
+
+    fun onMouseMove(event: MouseMoveEventContext.() -> Unit) {
+        onMouseMove = event
     }
 
     var width = 800
@@ -94,6 +106,9 @@ class Window(builder: Window.() -> Unit) {
         }
 
         glfwSetCursorPosCallback(windowHandle) { _, x, y ->
+            val oldX = mouseX
+            val oldY = mouseY
+
             if (isMac) {
                 mouseX = x
                 mouseY = y
@@ -102,6 +117,8 @@ class Window(builder: Window.() -> Unit) {
 
             mouseX = x / scaleX
             mouseY = y / scaleY
+
+            onMouseMove(MouseMoveEventContext(mouseX, mouseY, oldX - mouseX, oldY - mouseY))
         }
 
         glfwSetMouseButtonCallback(windowHandle) { _, button, action, mods ->

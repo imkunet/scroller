@@ -64,7 +64,7 @@ class ClosedFormSpring {
     fun setTarget(target: Double, velocity: Double = this.velocity) {
         start = value
         this.target = target
-        //startVelocity = velocity
+        startVelocity = velocity
         totalTime = 0.0
     }
 }
