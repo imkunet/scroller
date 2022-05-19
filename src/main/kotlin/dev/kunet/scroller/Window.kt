@@ -10,7 +10,15 @@ import org.lwjgl.opengl.GL30
 import org.lwjgl.system.MemoryUtil.NULL
 import kotlin.math.roundToInt
 
-class Window(val draw: DrawContext.() -> Unit) {
+private val os = System.getProperty("os.name").lowercase()
+private val isMac = os.contains("mac") || os.contains("darwin")
+
+class Window(builder: Window.() -> Unit) {
+    val profiler = Profiler()
+
+    private var onDraw: DrawContext.() -> Unit = {}
+    private var onMouseButton: MouseButtonEventContext.() -> Unit = {}
+
     private var windowHandle: Long = -1L
     private var context: DirectContext? = null
     private var renderTarget: BackendRenderTarget? = null
@@ -18,13 +26,36 @@ class Window(val draw: DrawContext.() -> Unit) {
     private var frameBufferId: Int = 0
     private var canvas: Canvas? = null
 
-    data class DrawContext(val canvas: Canvas, val window: Window, val unscaledDeltaTime: Long, val deltaTime: Double)
+    data class DrawContext(
+        val canvas: Canvas,
+        val window: Window,
+        val currentTime: Long,
+        val unscaledDeltaTime: Long,
+        val deltaTime: Double,
+    )
+
+    data class MouseButtonEventContext(
+        val button: Int,
+        val action: Int,
+        val mods: Int,
+    )
+
+    fun onDraw(draw: DrawContext.() -> Unit) {
+        onDraw = draw
+    }
+
+    fun onMouseButton(event: MouseButtonEventContext.() -> Unit) {
+        onMouseButton = event
+    }
 
     var width = 800
     var height = 600
 
     var scaleX = 1.0f
     var scaleY = 1.0f
+
+    var mouseX = 0.0
+    var mouseY = 0.0
 
     private var lastRenderTime = -1L
 
@@ -33,6 +64,7 @@ class Window(val draw: DrawContext.() -> Unit) {
         if (!glfwInit()) throw IllegalStateException("Unable to initialize GLFW")
 
         createWindow()
+        builder()
         bootstrap()
 
         // cleanup
@@ -53,6 +85,27 @@ class Window(val draw: DrawContext.() -> Unit) {
             if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE) {
                 glfwSetWindowShouldClose(windowHandle, true)
             }
+        }
+
+        glfwSetWindowSizeCallback(windowHandle) { _, _, _ ->
+            updateDimensions()
+            initializeSkia()
+            drawFrame()
+        }
+
+        glfwSetCursorPosCallback(windowHandle) { _, x, y ->
+            if (isMac) {
+                mouseX = x
+                mouseY = y
+                return@glfwSetCursorPosCallback
+            }
+
+            mouseX = x / scaleX
+            mouseY = y / scaleY
+        }
+
+        glfwSetMouseButtonCallback(windowHandle) { _, button, action, mods ->
+            onMouseButton(MouseButtonEventContext(button, action, mods))
         }
 
         updateDimensions()
@@ -96,7 +149,7 @@ class Window(val draw: DrawContext.() -> Unit) {
         val surface = Surface.makeFromBackendRenderTarget(
             context,
             renderTarget,
-            SurfaceOrigin.TOP_LEFT,
+            SurfaceOrigin.BOTTOM_LEFT,
             SurfaceColorFormat.RGBA_8888,
             ColorSpace.sRGB
         )
@@ -114,11 +167,13 @@ class Window(val draw: DrawContext.() -> Unit) {
         lastRenderTime = currentTime
 
         val canvas = canvas ?: return
-        val drawContext = DrawContext(canvas, this, deltaTime, deltaTime / 1000.0)
-        draw(drawContext)
+        val drawContext = DrawContext(canvas, this, currentTime, deltaTime, deltaTime / 1000.0)
+        onDraw(drawContext)
 
         context?.flush()
         glfwSwapBuffers(windowHandle)
+
+        profiler.updateFramerate()
     }
 
     private fun bootstrap() {
@@ -126,12 +181,6 @@ class Window(val draw: DrawContext.() -> Unit) {
         context = DirectContext.makeGL()
 
         frameBufferId = GL11.glGetInteger(GL30.GL_FRAMEBUFFER_BINDING)
-
-        glfwSetWindowSizeCallback(windowHandle) { _, _, _ ->
-            updateDimensions()
-            initializeSkia()
-            drawFrame()
-        }
 
         initializeSkia()
 

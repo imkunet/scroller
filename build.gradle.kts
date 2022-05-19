@@ -1,9 +1,11 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.lwjgl.Lwjgl
 
 plugins {
     kotlin("jvm") version "1.6.21"
     id("org.lwjgl.plugin") version "0.0.20"
+    id("com.github.johnrengelman.shadow") version "7.1.2"
 }
 
 group = "dev.kunet"
@@ -31,12 +33,30 @@ var targetArch = when (osArch) {
 
 val skikoVersion = "0.7.20"
 val target = "${targetOs}-${targetArch}"
+
 dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.1")
     implementation("org.jetbrains.skiko:skiko-awt-runtime-$target:$skikoVersion")
     Lwjgl { implementation(Lwjgl.Preset.minimalOpenGL) }
 }
 
-tasks.withType<KotlinCompile> {
-    kotlinOptions.jvmTarget = "1.8"
+tasks {
+    build {
+        dependsOn(shadowJar)
+    }
+
+    withType<ShadowJar> {
+        exclude("META-INF/**")
+        exclude("DebugProbesKt.bin")
+    }
+
+    withType<KotlinCompile> {
+        kotlinOptions.jvmTarget = "1.8"
+    }
+
+    withType<Jar> {
+        manifest {
+            attributes("Main-Class" to "dev.kunet.scroller.ScrollerKt")
+        }
+    }
 }
