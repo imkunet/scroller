@@ -10,26 +10,28 @@ class Spring(
     var target: Double = 0.0,
     var velocity: Double = 0.0,
 
-    var stepSize: Double = 100.0,
+    var stepSize: Double = 10.0,
     var leftoverStep: Double = 0.0,
 ) {
-    fun tick(deltaTime: Double) {
-        val delta = deltaTime + leftoverStep
+    var lastPoll = -1L
 
-        if (delta < stepSize) {
-            leftoverStep += delta
-            return
-        }
-
-        val steps = floor(delta / stepSize).toInt()
-
-        leftoverStep = delta % stepSize
-
+    fun tick() {
         if (isStopped()) {
             position = target
             velocity = 0.0
             return
         }
+
+        val now = System.currentTimeMillis()
+        if (lastPoll == -1L) lastPoll = now
+
+        val delta = (now - lastPoll) + leftoverStep
+        if (delta < stepSize) return
+
+        val steps = floor(delta / stepSize).toInt()
+        leftoverStep = delta % stepSize
+
+        lastPoll = now
 
         velocity += 1.0 / stiffness * (target - position) * steps
         velocity *= (1.0 / damping).fastPow(steps)

@@ -18,4 +18,4 @@ private fun Double.internalPow(x: Int): Double {
     return sum
 }
 
-infix fun Double.isCloseTo(other: Double) = abs(this - other) < 0.001
+infix fun Double.isCloseTo(other: Double) = abs(this - other) < 0.01

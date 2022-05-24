@@ -4,7 +4,7 @@ import org.jetbrains.skia.*
 import org.lwjgl.glfw.GLFW.*
 
 fun main() {
-    val spring = Spring(3.0, 1.5)
+    val spring = Spring(4.0, 10.0)
 
     val typeface = Typeface.makeFromData(Data.makeFromBytes(fetchResource("fonts", "Inter-Regular.ttf")))
     val regularFont = Font(typeface)
@@ -20,7 +20,9 @@ fun main() {
     val blackPaint = Paint().setARGB(0xFF, 0x00, 0x00, 0x00)
 
     val helloWorldText = TextLine.make("Hello World", semiBoldFont)
+    val helloWorldWidth = helloWorldText.width
     val helloWorldHeight = helloWorldText.height
+    val helloWorldTextBlob = helloWorldText.textBlob!!
 
     var containerX = 0.0
     var containerY = 0.0
@@ -35,7 +37,7 @@ fun main() {
         var pressTime = -1L
 
         onDraw {
-            spring.tick(unscaledDeltaTime.toDouble())
+            spring.tick()
 
             canvas.drawRect(
                 Rect(0.0f, 0.0f, window.width.toFloat(), window.height.toFloat()),
@@ -45,12 +47,18 @@ fun main() {
             var offsetHeight = 0f
 
             while (offsetHeight < window.height * 2) {
-                canvas.drawTextLine(
-                    helloWorldText,
+                canvas.drawRect(Rect.makeXYWH(
+                    offsetHeight / 2 + containerX.toFloat(),
+                    offsetHeight + getContainerY().toFloat(),
+                    helloWorldWidth,
+                    helloWorldHeight
+                ), whitePaint)
+                /*canvas.drawTextBlob(
+                    helloWorldTextBlob,
                     offsetHeight / 2 + containerX.toFloat(),
                     offsetHeight + getContainerY().toFloat(),
                     whitePaint
-                )
+                )*/
                 offsetHeight += helloWorldHeight * 2
             }
 
@@ -87,7 +95,7 @@ fun main() {
                 leftDown = false
 
                 val deltaTime = System.currentTimeMillis() - pressTime
-                val velocity = (cumulativeY / deltaTime) * 100
+                val velocity = (cumulativeY / deltaTime) * 250
 
                 spring.position = 0.0
                 spring.target = -velocity
